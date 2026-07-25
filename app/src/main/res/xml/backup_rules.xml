@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="sharedpref" path="secure_prefs"/>
+    <exclude domain="database" path="jumpanime_db"/>
+    <exclude domain="database" path="jumpanime_db-shm"/>
+    <exclude domain="database" path="jumpanime_db-wal"/>
+</full-backup-content>

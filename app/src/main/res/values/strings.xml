@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">JumpAnime</string>
+    <string name="watchlist_title">My Watchlist</string>
+    <string name="tab_official">Official Tracker</string>
+    <string name="tab_custom">Watch History</string>
+    <string name="form_placeholder">Enter custom anime title...</string>
+    <string name="add_button_text">Add Anime</string>
+    <string name="delete_button_desc">Delete Anime</string>
+    <string name="validation_err_empty">Title cannot be empty!</string>
+    <string name="validation_err_exists">already listed</string>
+</resources>

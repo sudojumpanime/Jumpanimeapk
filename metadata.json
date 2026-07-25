@@ -1,0 +1,6 @@
+{
+  "name": "JumpAnime",
+  "description": "Companion app for JumpAnime streaming platform. Track watchlist, continue watching, and get new episode notifications.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
