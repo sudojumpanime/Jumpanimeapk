@@ -55,3 +55,8 @@
 -keep class com.example.data.** { *; }
 -keep class com.example.model.** { *; }
 
+# Ignore warnings for optional dependencies in Tink / Google APIs / Joda Time
+-dontwarn com.google.api.client.**
+-dontwarn com.google.crypto.tink.**
+-dontwarn org.joda.time.**
+
