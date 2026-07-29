@@ -46,4 +46,21 @@ sealed interface Screen {
 
     @Serializable
     data object Notifications : Screen
+
+    @Serializable
+    data object Manga : Screen
+
+    @Serializable
+    data class MangaDetail(val mangaUrl: String) : Screen
+
+    @Serializable
+    data class MangaReader(
+        val mangaId: String,
+        val mangaTitle: String,
+        val mangaCover: String,
+        val mangaUrl: String,
+        val chapterId: String,
+        val chapterName: String,
+        val chapterUrl: String
+    ) : Screen
 }

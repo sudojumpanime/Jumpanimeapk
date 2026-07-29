@@ -49,6 +49,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.MenuBook
+import com.example.ui.screens.MangaBrowseScreen
+import com.example.ui.screens.MangaDetailScreen
+import com.example.ui.screens.MangaReaderScreen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -135,7 +139,8 @@ private fun getTabIndex(destination: androidx.navigation.NavDestination?): Int? 
         destination.hasRoute<Screen.Home>() -> 0
         destination.hasRoute<Screen.Schedule>() -> 1
         destination.hasRoute<Screen.Watchlist>() -> 2
-        destination.hasRoute<Screen.Settings>() -> 3
+        destination.hasRoute<Screen.Manga>() -> 3
+        destination.hasRoute<Screen.Settings>() -> 4
         else -> null
     }
 }
@@ -164,6 +169,10 @@ fun JumpAnimeApp(
     val watchlistViewModel: WatchlistViewModel = viewModel(
         viewModelStoreOwner = context as androidx.activity.ComponentActivity,
         factory = ViewModelFactory(container.repository)
+    )
+    val mangaViewModel: MangaViewModel = viewModel(
+        viewModelStoreOwner = context as androidx.activity.ComponentActivity,
+        factory = ViewModelFactory(container.repository, mangaRepository = container.mangaRepository)
     )
 
     val homeLoadDone by homeViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
@@ -215,7 +224,7 @@ fun JumpAnimeApp(
     val currentDestination = navBackStackEntry?.destination
 
     val showBottomBar = currentDestination?.run {
-        hasRoute<Screen.Home>() || hasRoute<Screen.Browse>() || hasRoute<Screen.Schedule>() || hasRoute<Screen.Watchlist>() || hasRoute<Screen.Settings>()
+        hasRoute<Screen.Home>() || hasRoute<Screen.Browse>() || hasRoute<Screen.Schedule>() || hasRoute<Screen.Watchlist>() || hasRoute<Screen.Manga>() || hasRoute<Screen.Settings>()
     } == true
 
     val activeNotification by container.episodeUpdateService.activeNotification.collectAsStateWithLifecycle()
@@ -305,6 +314,18 @@ fun JumpAnimeApp(
                             },
                             icon = { Icon(Icons.Default.Bookmark, contentDescription = "My List") },
                             label = { Text("My List") }
+                        )
+                        NavigationBarItem(
+                            selected = currentDestination?.hasRoute<Screen.Manga>() == true,
+                            onClick = {
+                                navController.navigate(Screen.Manga) {
+                                    popUpTo(Screen.Home) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = { Icon(Icons.Default.MenuBook, contentDescription = "Manga") },
+                            label = { Text("Manga") }
                         )
                         NavigationBarItem(
                             selected = currentDestination?.hasRoute<Screen.Settings>() == true,
@@ -623,6 +644,67 @@ fun JumpAnimeApp(
                         onBackClick = { navController.popBackStack() }
                     )
                 }
+
+                composable<Screen.Manga> {
+                    MangaBrowseScreen(
+                        viewModel = mangaViewModel,
+                        onMangaClick = { url -> navController.navigate(Screen.MangaDetail(url)) },
+                        onBackClick = {
+                            navController.navigate(Screen.Home) {
+                                popUpTo(Screen.Home) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+
+                composable<Screen.MangaDetail> { backStackEntry ->
+                    val detail: Screen.MangaDetail = backStackEntry.toRoute()
+                    MangaDetailScreen(
+                        viewModel = mangaViewModel,
+                        mangaUrl = detail.mangaUrl,
+                        onChapterClick = { manga, chapter ->
+                            navController.navigate(
+                                Screen.MangaReader(
+                                    mangaId = manga.id,
+                                    mangaTitle = manga.title,
+                                    mangaCover = manga.coverUrl,
+                                    mangaUrl = manga.url,
+                                    chapterId = chapter.id,
+                                    chapterName = chapter.name,
+                                    chapterUrl = chapter.url
+                                )
+                            )
+                        },
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Screen.MangaReader> { backStackEntry ->
+                    val reader: Screen.MangaReader = backStackEntry.toRoute()
+                    val chapter = com.example.data.model.MangaChapter(
+                        id = reader.chapterId,
+                        name = reader.chapterName,
+                        url = reader.chapterUrl
+                    )
+                    val mangaDetail = com.example.data.model.MangaDetail(
+                        id = reader.mangaId,
+                        title = reader.mangaTitle,
+                        coverUrl = reader.mangaCover,
+                        description = "",
+                        author = "",
+                        status = "",
+                        genres = emptyList(),
+                        url = reader.mangaUrl,
+                        chapters = emptyList()
+                    )
+                    MangaReaderScreen(
+                        viewModel = mangaViewModel,
+                        mangaDetail = mangaDetail,
+                        chapter = chapter,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
             }
         }
 
@@ -763,7 +845,8 @@ fun JumpAnimeApp(
 
 class ViewModelFactory(
     private val repository: com.example.data.JumpAnimeRepository,
-    private val episodeUpdateService: com.example.data.EpisodeUpdateService? = null
+    private val episodeUpdateService: com.example.data.EpisodeUpdateService? = null,
+    private val mangaRepository: com.example.data.MangaRepository? = null
 ) : androidx.lifecycle.ViewModelProvider.Factory {
     override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
         return when {
@@ -774,6 +857,7 @@ class ViewModelFactory(
             modelClass.isAssignableFrom(WatchlistViewModel::class.java) -> WatchlistViewModel(repository) as T
             modelClass.isAssignableFrom(PlayerViewModel::class.java) -> PlayerViewModel(repository) as T
             modelClass.isAssignableFrom(ScheduleViewModel::class.java) -> ScheduleViewModel(repository, episodeUpdateService) as T
+            modelClass.isAssignableFrom(MangaViewModel::class.java) -> MangaViewModel(mangaRepository!!) as T
             else -> throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
