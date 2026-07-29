@@ -4,8 +4,6 @@ import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 import com.example.data.model.Anime
 import com.example.data.model.SearchHistory
-import com.example.data.model.MangaLibraryEntry
-import com.example.data.model.MangaReadHistory
 
 @Entity(
     tableName = "notifications",
@@ -209,7 +207,7 @@ interface CommentDao {
     suspend fun updateLikeExact(commentId: Int, likes: Int, isLiked: Boolean)
 }
 
-@Database(entities = [AnimeWatchState::class, Anime::class, SearchHistory::class, CustomTitle::class, NotificationEntity::class, Comment::class, MangaLibraryEntry::class, MangaReadHistory::class], version = 21, exportSchema = false)
+@Database(entities = [AnimeWatchState::class, Anime::class, SearchHistory::class, CustomTitle::class, NotificationEntity::class, Comment::class], version = 20, exportSchema = false)
 @TypeConverters(RoomConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun animeWatchDao(): AnimeWatchDao
@@ -218,6 +216,4 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun customTitleDao(): CustomTitleDao
     abstract fun notificationDao(): NotificationDao
     abstract fun commentDao(): CommentDao
-    abstract fun mangaLibraryDao(): MangaLibraryDao
-    abstract fun mangaReadHistoryDao(): MangaReadHistoryDao
 }
