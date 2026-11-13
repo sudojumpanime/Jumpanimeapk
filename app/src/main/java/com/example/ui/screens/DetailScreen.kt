@@ -81,6 +81,7 @@ fun DetailScreen(
     val isLoadingEpisodes by viewModel.isLoadingEpisodes.collectAsStateWithLifecycle()
     val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
     val nextSeasons by viewModel.nextSeasons.collectAsStateWithLifecycle()
+    val kittyDetail by viewModel.kittyDetail.collectAsStateWithLifecycle()
     val commentsList by viewModel.comments.collectAsStateWithLifecycle()
     val isLoadingComments by viewModel.isLoadingComments.collectAsStateWithLifecycle()
     val isLoggedIn = remember { viewModel.isLoggedIn() }
@@ -106,9 +107,13 @@ fun DetailScreen(
             if (seasonId != null) {
                 viewModel.loadEpisodes(seasonId)
             }
-            state.anime.malId?.toIntOrNull()?.let { 
-                viewModel.loadRecommendations(it)
-                viewModel.loadNextSeasons(it, state.anime.title)
+            if (state.anime._id.startsWith(com.example.kitty.KITTY_ID_PREFIX)) {
+                viewModel.loadKittyExtras(state.anime._id)
+            } else {
+                state.anime.malId?.toIntOrNull()?.let {
+                    viewModel.loadRecommendations(it)
+                    viewModel.loadNextSeasons(it, state.anime.title)
+                }
             }
         }
     }
@@ -525,6 +530,14 @@ fun DetailScreen(
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        // AniKitty-style extras: studio, trailer, characters, staff, links
+                        val kittyExtras = kittyDetail
+                        if (kittyExtras != null && com.example.kitty.kittyId(kittyExtras.id) == anime._id) {
+                            item {
+                                com.example.ui.components.KittyDetailSections(kittyExtras)
                             }
                         }
 
