@@ -7,6 +7,8 @@ import com.example.data.local.Comment
 import com.example.data.model.Anime
 import com.example.data.model.Episode
 import com.example.data.model.getEstimatedEpisodesCount
+import com.example.kitty.anilistIdOrNull
+import com.example.kitty.toAnime
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -219,6 +221,20 @@ class DetailViewModel(private val repository: JumpAnimeRepository) : ViewModel()
 
     private val _nextSeasons = MutableStateFlow<List<Anime>>(emptyList())
     val nextSeasons = _nextSeasons.asStateFlow()
+
+    /** AniList detail (studios, staff, characters, trailer ...) for "al_" titles. */
+    private val _kittyDetail = MutableStateFlow<com.example.kitty.anilist.AnimeSummary?>(null)
+    val kittyDetail = _kittyDetail.asStateFlow()
+
+    fun loadKittyExtras(animeId: String) {
+        val anilistId = animeId.anilistIdOrNull() ?: return
+        viewModelScope.launch {
+            val detail = try { repository.kitty.detail(anilistId) } catch (e: Exception) { null } ?: return@launch
+            _kittyDetail.value = detail
+            _recommendations.value = detail.recommendations.map { rec -> rec.toAnime() }
+            _nextSeasons.value = repository.kitty.related(detail)
+        }
+    }
 
     fun loadEpisodes(seasonId: String, anime: Anime? = null) {
         _isLoadingEpisodes.value = true

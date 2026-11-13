@@ -5,6 +5,7 @@ import com.example.data.model.Anime
 import com.example.data.model.Episode
 import com.example.data.model.Season
 import com.example.kitty.anilist.AniListClient
+import com.example.kitty.anilist.AnimeRelation
 import com.example.kitty.anilist.AnimeSummary
 import java.util.concurrent.ConcurrentHashMap
 
@@ -67,6 +68,16 @@ fun AnimeSummary.toAnime(): Anime {
     )
 }
 
+/** Related / prequel / sequel entry -> card model. */
+fun AnimeRelation.toAnime(): Anime = Anime(
+    _id = kittyId(id),
+    title = title,
+    poster = coverImageUrl,
+    type = typeText(format),
+    year = seasonYear,
+    episodesCount = episodes ?: 0,
+)
+
 /** Episode rows for the existing episode list UI. */
 fun AnimeSummary.toEpisodes(animeId: String): List<Episode> {
     if (status.equals("NOT_YET_RELEASED", ignoreCase = true)) return emptyList()
@@ -113,6 +124,13 @@ class KittyCatalog(context: Context) {
         val id = animeId.anilistIdOrNull() ?: return emptyList()
         return detail(id)?.toEpisodes(animeId).orEmpty()
     }
+
+    /** Seasons (prequel/sequel) first, then other related titles, without the show itself. */
+    fun related(of: AnimeSummary): List<Anime> =
+        (of.seasonEntries() + of.relatedOutsideSeasons())
+            .filter { it.id != of.id }
+            .distinctBy { it.id }
+            .map { it.toAnime() }
 
     suspend fun trending(perPage: Int, page: Int = 1): List<Anime> =
         remember(client.trending(page = page, perPage = perPage)).map { it.toAnime() }
