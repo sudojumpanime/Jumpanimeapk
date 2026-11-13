@@ -60,7 +60,8 @@ fun SettingsScreen(
     onBackClick: () -> Unit,
     onLogout: () -> Unit,
     onEditProfileClick: () -> Unit,
-    onThemeChange: (String) -> Unit = {}
+    onThemeChange: (String) -> Unit = {},
+    onStreamSourcesClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -275,6 +276,16 @@ fun SettingsScreen(
                         }
                     }
                 }
+            }
+
+            // Stream sources / extensions (AniKitty-style store)
+            androidx.compose.material3.OutlinedButton(
+                onClick = onStreamSourcesClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("Stream sources & extensions", fontWeight = FontWeight.Bold)
             }
 
             // MINI VISUAL STATS DASHBOARD

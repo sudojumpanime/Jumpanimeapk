@@ -8,4 +8,7 @@
         <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
         <item name="postSplashScreenTheme">@style/Theme.MyApplication</item>
     </style>
+
+    <!-- Used only to theme the Chromecast MediaRouteButton in the player. -->
+    <style name="Theme.JumpAnime.Cast" parent="Theme.AppCompat.NoActionBar" />
 </resources>

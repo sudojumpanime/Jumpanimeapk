@@ -20,6 +20,7 @@ class DependencyContainer(context: Context) {
     }
     
     val kitty by lazy { com.example.kitty.KittyCatalog(context) }
+    val streamServers by lazy { com.example.kitty.servers.ServerCatalog(context) }
 
     val repository by lazy {
         JumpAnimeRepository(
