@@ -46,4 +46,7 @@ sealed interface Screen {
 
     @Serializable
     data object Notifications : Screen
+
+    @Serializable
+    data object Extensions : Screen
 }

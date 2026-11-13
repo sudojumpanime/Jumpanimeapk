@@ -8,6 +8,7 @@ import kotlinx.coroutines.launch
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -542,6 +543,9 @@ fun JumpAnimeApp(
                         onEditProfileClick = {
                             navController.navigate(Screen.EditProfile)
                         },
+                        onStreamSourcesClick = {
+                            navController.navigate(Screen.Extensions)
+                        },
                         onThemeChange = { theme ->
                             themeNameState.value = theme
                         }
@@ -584,6 +588,20 @@ fun JumpAnimeApp(
                         },
                         onBackClick = { navController.popBackStack() }
                     )
+                }
+
+                composable<Screen.Extensions> {
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(androidx.compose.ui.graphics.Color.Black)
+                            .statusBarsPadding()
+                    ) {
+                        androidx.compose.material3.TextButton(onClick = { navController.popBackStack() }) {
+                            Text("← Back", color = androidx.compose.ui.graphics.Color.White)
+                        }
+                        com.example.kitty.ui.ExtensionStoreFeed(catalog = container.streamServers)
+                    }
                 }
 
                 composable<Screen.Notifications> {
