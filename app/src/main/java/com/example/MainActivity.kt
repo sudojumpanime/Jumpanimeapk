@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.example.ui.theme.JumpAnimeTheme
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
+import com.example.kitty.anilistIdOrNull
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
@@ -610,18 +611,39 @@ fun JumpAnimeApp(
 
                 composable<Screen.Player> { backStackEntry ->
                     val player: Screen.Player = backStackEntry.toRoute()
-                    val viewModel: PlayerViewModel = viewModel(factory = ViewModelFactory(container.repository))
-                    PlayerScreen(
-                        viewModel = viewModel,
-                        animeId = player.animeId,
-                        malId = player.malId,
-                        seasonId = player.seasonId,
-                        episodeNumber = player.episodeNumber,
-                        animeTitle = player.animeTitle,
-                        episodeTitle = player.episodeTitle,
-                        animePoster = player.animePoster,
-                        onBackClick = { navController.popBackStack() }
-                    )
+                    if (player.animeId.startsWith(com.example.kitty.KITTY_ID_PREFIX)) {
+                        // AniList titles play through the Media3 player ported from AniKitty.
+                        val totalEpisodes = player.animeId.anilistIdOrNull()
+                            ?.let { container.kitty.cached(it)?.releasedEpisodeCount() }
+                            ?.takeIf { it > 0 }
+                        com.example.kitty.player.KittyPlayerHost(
+                            catalog = container.streamServers,
+                            animeId = player.animeId,
+                            animeTitle = player.animeTitle,
+                            startEpisode = player.episodeNumber,
+                            lastEpisode = totalEpisodes,
+                            onBack = { navController.popBackStack() },
+                            saveProgress = { episode, positionMs, durationMs ->
+                                val fraction = if (durationMs > 0) {
+                                    (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+                                } else 0f
+                                container.repository.saveLocalWatchState(player.animeId, episode, fraction)
+                            }
+                        )
+                    } else {
+                        val viewModel: PlayerViewModel = viewModel(factory = ViewModelFactory(container.repository))
+                        PlayerScreen(
+                            viewModel = viewModel,
+                            animeId = player.animeId,
+                            malId = player.malId,
+                            seasonId = player.seasonId,
+                            episodeNumber = player.episodeNumber,
+                            animeTitle = player.animeTitle,
+                            episodeTitle = player.episodeTitle,
+                            animePoster = player.animePoster,
+                            onBackClick = { navController.popBackStack() }
+                        )
+                    }
                 }
             }
         }

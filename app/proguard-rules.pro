@@ -60,3 +60,6 @@
 -dontwarn com.google.crypto.tink.**
 -dontwarn org.joda.time.**
 
+
+# Chromecast options provider is referenced only from the manifest.
+-keep class com.example.kitty.cast.AniKittyCastOptionsProvider { *; }
