@@ -93,6 +93,10 @@ class DetailViewModel(private val repository: JumpAnimeRepository) : ViewModel()
     private suspend fun populateJikanOrSimulatedEpisodes(anime: Anime) {
         _isLoadingEpisodes.value = true
         try {
+            if (anime._id.startsWith(com.example.kitty.KITTY_ID_PREFIX)) {
+                _episodes.value = repository.kitty.episodesFor(anime._id)
+                return
+            }
             val malId = anime.malId?.toIntOrNull()
             val realJikanEpisodes = if (malId != null) repository.getJikanEpisodes(malId) else emptyList()
             val totalEp = getEstimatedEpisodesCount(anime.title, anime.episodesCount, anime.type, anime.malId, repository, anime.status)

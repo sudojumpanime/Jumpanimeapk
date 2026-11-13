@@ -3,6 +3,8 @@ package com.example.data
 import com.example.data.local.*
 import com.example.data.model.*
 import com.example.data.remote.ApiProvider
+import com.example.kitty.anilistIdOrNull
+import com.example.kitty.toAnime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.buildJsonObject
@@ -17,7 +19,8 @@ class JumpAnimeRepository(
     private val historyDao: SearchHistoryDao,
     private val customTitleDao: CustomTitleDao,
     val commentDao: CommentDao,
-    val sessionManager: SessionManager
+    val sessionManager: SessionManager,
+    val kitty: com.example.kitty.KittyCatalog
 ) {
     private val api get() = apiProvider.getApi()
     private val jikanApi get() = apiProvider.getJikanApi()
@@ -624,6 +627,16 @@ class JumpAnimeRepository(
     }
 
     suspend fun getTrending(genre: String? = null): List<Anime> {
+        try {
+            val fromAniList = if (genre == null) kitty.trending(perPage = 5)
+                else kitty.search(null, genre, null, null, null, 1, 5)
+            if (fromAniList.isNotEmpty()) {
+                if (genre == null) saveAnimesLocally(fromAniList, isTrending = true)
+                return fromAniList
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         var trendingList: List<Anime> = emptyList()
 
         // 1. Fetch real trending anime from the auto endpoint
@@ -668,6 +681,28 @@ class JumpAnimeRepository(
     }
 
     suspend fun getTrendingAndFeatured(genre: String? = null, search: String? = null): Pair<List<Anime>, List<Anime>> {
+        try {
+            val plain = search.isNullOrBlank() && (genre == null || genre == "All" || genre == "All Genres")
+            val aTrending: List<Anime>
+            val aFeatured: List<Anime>
+            if (plain) {
+                aTrending = kitty.trending(perPage = 5)
+                aFeatured = kitty.popular(perPage = 10)
+            } else {
+                val found = kitty.search(search, genre, null, null, null, 1, 15)
+                aTrending = found.take(5)
+                aFeatured = found.take(10)
+            }
+            if (aTrending.isNotEmpty() || aFeatured.isNotEmpty()) {
+                if (plain) {
+                    saveAnimesLocally(aTrending, isTrending = true)
+                    saveAnimesLocally(aFeatured, isFeatured = true)
+                }
+                return aTrending to aFeatured
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         var trendingList: List<Anime> = emptyList()
 
         // 1. Fetch real trending anime from the auto endpoint
@@ -913,6 +948,20 @@ class JumpAnimeRepository(
     }
 
     suspend fun getAnimeDetail(id: String): Anime = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // AniList titles ("al_<id>") are served straight from AniList (AniKitty-style detail).
+        val aniListId = id.anilistIdOrNull()
+        if (aniListId != null) {
+            val summary = try { kitty.detail(aniListId) } catch (e: Exception) { null }
+            if (summary != null) {
+                val base = summary.toAnime()
+                val existing = animeDao.getById(base._id)
+                val toSave = base.copy(inWatchlist = existing?.inWatchlist ?: false)
+                animeDao.insertAll(listOf(toSave))
+                return@withContext toSave
+            }
+            return@withContext animeDao.getById(id)
+                ?: throw IllegalStateException("Could not load this title from AniList")
+        }
         val isMalId = id.startsWith("mal_") || (id.all { it.isDigit() } && id.length < 12)
         if (isMalId) {
             try {
@@ -996,6 +1045,16 @@ class JumpAnimeRepository(
     }
 
     suspend fun getPopular(genre: String? = null): List<Anime> {
+        try {
+            val fromAniList = if (genre == null) kitty.popular(perPage = 15)
+                else kitty.search(null, genre, null, null, "popular", 1, 15)
+            if (fromAniList.isNotEmpty()) {
+                if (genre == null) saveAnimesLocally(fromAniList, isMostPopular = true)
+                return fromAniList
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         return try {
             api.getAnimes(sort = "popular", genre = genre, limit = 15).animes
         } catch (e: Exception) {
@@ -1013,6 +1072,16 @@ class JumpAnimeRepository(
     }
 
     suspend fun getRecentlyAdded(genre: String? = null): List<Anime> {
+        try {
+            val fromAniList = if (genre == null) kitty.recent(perPage = 15)
+                else kitty.search(null, genre, null, null, "recently added", 1, 15)
+            if (fromAniList.isNotEmpty()) {
+                if (genre == null) saveAnimesLocally(fromAniList, isRecentlyAdded = true)
+                return fromAniList
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         return try {
             val list = api.getAnimes(sort = "latest", genre = genre, limit = 15).animes
             if (list.isNotEmpty() && genre == null) {
@@ -1046,6 +1115,13 @@ class JumpAnimeRepository(
     }
 
     suspend fun getTopRated(genre: String? = null): List<Anime> {
+        try {
+            val fromAniList = if (genre == null) kitty.topRated(perPage = 15)
+                else kitty.search(null, genre, null, null, "rating", 1, 15)
+            if (fromAniList.isNotEmpty()) return fromAniList
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         return try {
             api.getAnimes(sort = "rating", genre = genre, limit = 15).animes
         } catch (e: Exception) {
@@ -1281,6 +1357,16 @@ class JumpAnimeRepository(
         limit: Int = 20,
         page: Int = 1
     ): AnimeListResponse = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        // AniList first (same catalog AniKitty uses); old sources stay as fallback below.
+        try {
+            val found = kitty.search(query, genres?.firstOrNull() ?: genre, type, status, sort, page, limit)
+            if (found.isNotEmpty()) {
+                val total = (page - 1) * limit + found.size + (if (found.size >= limit) limit else 0)
+                return@withContext AnimeListResponse(animes = found, total = total, page = page)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("JumpAnimeRepository", "AniList-first load failed, using previous sources", e)
+        }
         if (sort?.lowercase() == "recently_added" || sort?.lowercase() == "recently added") {
             try {
                 val thirtyDaysAgoUnix = (System.currentTimeMillis() - 30L * 24 * 3600 * 1000) / 1000

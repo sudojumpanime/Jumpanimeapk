@@ -19,6 +19,8 @@ class DependencyContainer(context: Context) {
         ).fallbackToDestructiveMigration().build()
     }
     
+    val kitty by lazy { com.example.kitty.KittyCatalog(context) }
+
     val repository by lazy {
         JumpAnimeRepository(
             apiProvider,
@@ -27,7 +29,8 @@ class DependencyContainer(context: Context) {
             database.searchHistoryDao(),
             database.customTitleDao(),
             database.commentDao(),
-            sessionManager
+            sessionManager,
+            kitty
         )
     }
     
