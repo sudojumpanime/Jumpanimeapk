@@ -69,14 +69,16 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
 
     // Retrieve saved profile parameters
-    val isGuest = remember { sessionManager.isGuestMode() }
+    val aniAccountState = repository.kitty.account
+    val aniLinkedName by aniAccountState.linkedName.collectAsStateWithLifecycle()
+    val isGuest = aniLinkedName == null
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var avatarUrl by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
-        username = if (isGuest) "Guest" else sessionManager.getUsername() ?: "Otaku Explorer"
-        email = if (isGuest) "" else sessionManager.getEmail() ?: "email@jumpanime.com"
+    LaunchedEffect(aniLinkedName) {
+        username = if (isGuest) "Guest" else aniLinkedName ?: "AniList user"
+        email = if (isGuest) "" else "AniList"
         avatarUrl = sessionManager.getAvatarUrl()
     }
     var notificationsEnabled by remember { mutableStateOf(sessionManager.isNotificationsEnabled()) }
@@ -383,7 +385,7 @@ fun SettingsScreen(
                 if (activeSubPage == null) {
                     SettingsCategoryCard(
                         title = "Account Details",
-                        subtitle = if (isGuest) "Logged in as Guest" else "Manage display name and email",
+                        subtitle = if (isGuest) "Not signed in" else "Signed in with AniList",
                         icon = Icons.Default.Person,
                         isExpanded = false,
                         onHeaderClick = { activeSubPage = "ACCOUNT" }
@@ -414,7 +416,7 @@ fun SettingsScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        text = "You are currently browsing as a Guest. Sign in to sync your watchlist, add comments, and personalize your experience.",
+                                        text = "Sign in with AniList to sync your lists and write comments.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = Color.White.copy(alpha = 0.6f),
                                         textAlign = TextAlign.Center
@@ -422,11 +424,7 @@ fun SettingsScreen(
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Button(
                                         onClick = {
-                                            scope.launch {
-                                                repository.clearLocalCache()
-                                                sessionManager.saveGuestMode(false)
-                                                onLogout()
-                                            }
+                                            aniAccountState.startSignIn(context)
                                         },
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -442,15 +440,15 @@ fun SettingsScreen(
                                         icon = Icons.Default.Person,
                                         title = "Display Name",
                                         subtitle = username,
-                                        showChevron = true,
-                                        onClick = { onEditProfileClick() }
+                                        showChevron = false,
+                                        onClick = {}
                                     )
 
                                     HorizontalDivider(color = Color.White.copy(alpha = 0.05f))
 
                                     ProfileItemRow(
                                         icon = Icons.Default.Email,
-                                        title = "Primary Account Email",
+                                        title = "Signed in with",
                                         subtitle = email,
                                         showChevron = false,
                                         onClick = {}
@@ -1356,15 +1354,7 @@ fun SettingsScreen(
                 // SECTION 5: SESSION ACCOUNT SIGNOUT (DANGER ROW)
                 Button(
                     onClick = {
-                        scope.launch {
-                            repository.clearLocalCache()
-                            if (isGuest) {
-                                sessionManager.saveGuestMode(false)
-                            } else {
-                                sessionManager.clearToken()
-                            }
-                            onLogout()
-                        }
+                        if (isGuest) aniAccountState.startSignIn(context) else aniAccountState.clear()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1382,7 +1372,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = if (isGuest) "Sign In to JumpAnime" else "Sign Out & Clear Session",
+                        text = if (isGuest) "Sign In with AniList" else "Sign Out of AniList",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )

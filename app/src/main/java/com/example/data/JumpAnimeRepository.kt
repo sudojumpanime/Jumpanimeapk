@@ -2133,7 +2133,7 @@ class JumpAnimeRepository(
      * @param parentId  remoteId of parent comment, or null for a top-level comment.
      */
     suspend fun addComment(animeId: String, text: String, parentId: String? = null) {
-        val uName = sessionManager.getUsername() ?: "Otaku Explorer"
+        val uName = kitty.account.username ?: sessionManager.getUsername() ?: "Otaku Explorer"
         val uAvatar = sessionManager.getAvatarUrl()
         val response = api.postComment(animeId, PostCommentRequest(
             text = text,
