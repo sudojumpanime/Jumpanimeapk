@@ -1,8 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item
-        android:width="72dp"
-        android:height="72dp"
-        android:drawable="@drawable/ic_thorfinn"
-        android:gravity="center" />
-</layer-list>
+<!-- Placeholder: the original referenced @drawable/ic_thorfinn, an image that was never
+     committed to the repo (build failed: resource not found). To restore your artwork,
+     add ic_thorfinn.png to res/drawable and point this file back at it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,36 L42,72 L52,62 L66,72 L66,36 Z" />
+</vector>
