@@ -180,9 +180,13 @@ fun JumpAnimeApp(
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Activity-scoped Shared ViewModels for seamless tab switching and instant load
-    val homeViewModel: HomeViewModel = viewModel(
+    val homeViewModel: com.example.kitty.ui.KittyHomeViewModel = viewModel(
         viewModelStoreOwner = context as androidx.activity.ComponentActivity,
-        factory = ViewModelFactory(container.repository)
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                com.example.kitty.ui.KittyHomeViewModel(container.kitty, container.repository) as T
+        }
     )
     val scheduleViewModel: ScheduleViewModel = viewModel(
         viewModelStoreOwner = context as androidx.activity.ComponentActivity,
@@ -193,7 +197,7 @@ fun JumpAnimeApp(
         factory = ViewModelFactory(container.repository)
     )
 
-    val homeLoadDone by homeViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
+    val homeLoadDone by homeViewModel.ready.collectAsStateWithLifecycle()
     val scheduleLoadDone by scheduleViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
     val watchlistLoadDone by watchlistViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
 
@@ -232,11 +236,8 @@ fun JumpAnimeApp(
         kotlinx.coroutines.delay(8000)
         handleReady()
     }
-    val startDestination = when {
-        container.sessionManager.isLoggedIn() -> Screen.Home
-        container.sessionManager.isGuestMode() -> Screen.Home
-        else -> Screen.Welcome
-    }
+    // No JumpAnime accounts any more: AniList is the only sign-in, and it's optional.
+    val startDestination = Screen.Home
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -443,49 +444,12 @@ fun JumpAnimeApp(
                     }
                 }
             ) {
-                composable<Screen.Welcome> {
-                    androidx.compose.runtime.LaunchedEffect(Unit) {
-                        handleReady()
-                    }
-                    WelcomeScreen(
-                        sessionManager = container.sessionManager,
-                        onLoginClick = { navController.navigate(Screen.Login) },
-                        onGuestClick = {
-                            navController.navigate(Screen.Home) {
-                                popUpTo(Screen.Welcome) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-
-                composable<Screen.Login> {
-                    androidx.compose.runtime.LaunchedEffect(Unit) {
-                        handleReady()
-                    }
-                    val viewModel: AuthViewModel = viewModel(factory = ViewModelFactory(container.repository))
-                    LoginScreen(
-                        viewModel = viewModel,
-                        onLoginSuccess = {
-                            container.sessionManager.saveGuestMode(false)
-                            scope.launch {
-                                container.repository.clearLocalCache()
-                                try {
-                                    container.repository.syncWatchlistMetadata()
-                                } catch (e: Exception) { /* ignore */ }
-                                homeViewModel.refresh()
-                            }
-                            navController.navigate(Screen.Home) {
-                                popUpTo(Screen.Login) { inclusive = true }
-                            }
-                        }
-                    )
-                }
-                
                 composable<Screen.Home> {
-                    HomeScreen(
+                    val aniName by container.kitty.account.linkedName.collectAsStateWithLifecycle()
+                    com.example.kitty.ui.KittyHomeScreen(
                         viewModel = homeViewModel,
-                        notificationCount = unreadCount,
-                        onReady = handleReady,
+                        catalog = container.kitty,
+                        displayName = aniName ?: "Guest",
                         onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
                         onContinueWatchingClick = { item ->
                             navController.navigate(
@@ -501,6 +465,7 @@ fun JumpAnimeApp(
                             )
                         },
                         onSearchClick = { navController.navigate(Screen.Browse) },
+                        onScheduleClick = { navController.navigate(Screen.Schedule) },
                         onNotificationsClick = { navController.navigate(Screen.Notifications) }
                     )
                 }
@@ -571,11 +536,7 @@ fun JumpAnimeApp(
                         repository = container.repository,
                         updateService = container.episodeUpdateService,
                         onBackClick = { navController.popBackStack() },
-                        onLogout = {
-                            navController.navigate(Screen.Login) {
-                                popUpTo(0) { inclusive = true }
-                            }
-                        },
+                        onLogout = {},
                         onEditProfileClick = {
                             navController.navigate(Screen.EditProfile)
                         },

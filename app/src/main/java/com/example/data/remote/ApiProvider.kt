@@ -8,7 +8,10 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 
-class ApiProvider(private val sessionManager: SessionManager) {
+class ApiProvider(
+    private val sessionManager: SessionManager,
+    private val anilistToken: () -> String? = { null },
+) {
     private var api: JumpAnimeApiService? = null
     private var jikanApi: JikanApiService? = null
     private var currentBaseUrl: String = ""
@@ -83,6 +86,11 @@ class ApiProvider(private val sessionManager: SessionManager) {
                 
                 sessionManager.getToken()?.let {
                     requestBuilder.header("Authorization", "Bearer $it")
+                }
+                // Comments are tied to the user's AniList identity: the server checks this token
+                // with AniList once and must not store it.
+                anilistToken()?.let {
+                    requestBuilder.header("X-AniList-Token", it)
                 }
                 
                 val request = requestBuilder.build()

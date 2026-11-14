@@ -39,8 +39,8 @@ class DetailViewModel(private val repository: JumpAnimeRepository) : ViewModel()
         _errorEvent.value = null
     }
 
-    fun isLoggedIn(): Boolean = repository.sessionManager.isLoggedIn()
-    fun getLoggedUsername(): String = repository.sessionManager.getUsername() ?: "Guest"
+    fun isLoggedIn(): Boolean = repository.kitty.account.isLinked
+    fun getLoggedUsername(): String = repository.kitty.account.username ?: "Guest"
     fun isAdmin(): Boolean = repository.sessionManager.isAdmin()
 
     fun loadComments(animeId: String) {

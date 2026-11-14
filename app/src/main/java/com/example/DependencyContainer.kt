@@ -9,7 +9,7 @@ import com.example.data.remote.ApiProvider
 
 class DependencyContainer(context: Context) {
     val sessionManager by lazy { SessionManager(context) }
-    val apiProvider by lazy { ApiProvider(sessionManager) }
+    val apiProvider by lazy { ApiProvider(sessionManager) { kitty.account.accessToken } }
     
     val database by lazy {
         Room.databaseBuilder(
