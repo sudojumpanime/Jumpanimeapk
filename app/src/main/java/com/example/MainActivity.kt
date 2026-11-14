@@ -556,7 +556,7 @@ fun JumpAnimeApp(
                             if (aniListId != null) {
                                 container.downloads.enqueue(anime._id, aniListId, anime.title, anime.poster, episode.number)
                                 android.widget.Toast.makeText(
-                                    this@MainActivity,
+                                    navController.context,
                                     "Added Episode ${episode.number} to Downloads",
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()

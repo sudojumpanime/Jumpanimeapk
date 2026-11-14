@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Placeholder: the original welcome_bg image was never committed (build failed: unresolved
+     reference). Add welcome_bg.png/.jpg to res/drawable and delete this file to restore it. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="640dp"
+    android:viewportWidth="360"
+    android:viewportHeight="640">
+    <path
+        android:fillColor="#0F1115"
+        android:pathData="M0,0h360v640h-360z" />
+</vector>
