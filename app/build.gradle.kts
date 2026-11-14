@@ -118,6 +118,7 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
+  implementation("androidx.browser:browser:1.8.0")
   // Media3 player + Chromecast (ported from AniKitty)
   implementation("androidx.media3:media3-exoplayer:1.5.0")
   implementation("androidx.media3:media3-exoplayer-hls:1.5.0")

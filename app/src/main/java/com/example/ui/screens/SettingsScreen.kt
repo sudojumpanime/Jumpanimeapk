@@ -279,6 +279,26 @@ fun SettingsScreen(
                 }
             }
 
+            // AniList account: lists and progress sync
+            run {
+                val aniAccount = repository.kitty.account
+                val aniName by aniAccount.linkedName.collectAsStateWithLifecycle()
+                val aniContext = androidx.compose.ui.platform.LocalContext.current
+                androidx.compose.material3.OutlinedButton(
+                    onClick = {
+                        if (aniName == null) aniAccount.startSignIn(aniContext) else aniAccount.clear()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        if (aniName == null) "Sign in with AniList" else "AniList: $aniName · Sign out",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             // Stream sources / extensions (AniKitty-style store)
             androidx.compose.material3.OutlinedButton(
                 onClick = onStreamSourcesClick,

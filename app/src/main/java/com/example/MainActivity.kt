@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         container = (application as JumpAnimeApplication).container
         currentIntent.value = intent
+        handleAniListCallback(intent)
         
         lifecycleScope.launch(Dispatchers.IO) {
             container.repository.syncWatchlistMetadata()
@@ -109,7 +110,31 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (handleAniListCallback(intent)) return
         currentIntent.value = intent
+    }
+
+    /** Finishes AniList sign-in when the browser redirects back to jumpanime://anilist. */
+    private fun handleAniListCallback(intent: android.content.Intent?): Boolean {
+        val account = container.kitty.account
+        if (!account.matchesCallback(intent)) return false
+        val token = account.tokenFromCallback(intent?.data)
+        if (token == null) {
+            android.widget.Toast.makeText(this, "AniList sign-in didn't complete", android.widget.Toast.LENGTH_LONG).show()
+            return true
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val viewer = container.kitty.client.viewer(token)
+            launch(Dispatchers.Main) {
+                if (viewer != null) {
+                    account.save(token, viewer)
+                    android.widget.Toast.makeText(this@MainActivity, "Signed in to AniList as ${viewer.name}", android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    android.widget.Toast.makeText(this@MainActivity, "Couldn't read your AniList profile", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        return true
     }
 
     private fun setupWorkManager() {
