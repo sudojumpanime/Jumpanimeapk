@@ -69,6 +69,8 @@ class KittyHomeViewModel(
 
     init {
         load(force = false)
+        // Keep the avatar popup's numbers fresh when signed in.
+        viewModelScope.launch { runCatching { catalog.account.refreshProfile(catalog.client) } }
     }
 
     fun refresh() = load(force = true)
@@ -138,7 +140,20 @@ fun KittyHomeScreen(
     onSearchClick: () -> Unit,
     onScheduleClick: () -> Unit,
     onNotificationsClick: () -> Unit,
+    onAccountClick: () -> Unit,
 ) {
+    val profile by catalog.account.profile.collectAsStateWithLifecycle()
+    var showProfile by remember { mutableStateOf(false) }
+    val homeContext = androidx.compose.ui.platform.LocalContext.current
+    if (showProfile) {
+        KittyProfilePopup(
+            profile = profile,
+            onDismiss = { showProfile = false },
+            onViewAccount = onAccountClick,
+            onSignIn = { catalog.account.startSignIn(homeContext) },
+            onSignOut = { catalog.account.clear() },
+        )
+    }
     val trending by viewModel.trending.collectAsStateWithLifecycle()
     val popular by viewModel.popular.collectAsStateWithLifecycle()
     val seasonal by viewModel.seasonal.collectAsStateWithLifecycle()
@@ -157,13 +172,14 @@ fun KittyHomeScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         when {
-            loading && trending.isEmpty() -> LazyColumn(contentPadding = PaddingValues(bottom = 100.dp)) {
+            loading && trending.isEmpty() -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 item {
                     HomeWelcomeHeader(
                         displayName = displayName,
                         onRefresh = { viewModel.refresh() },
                         refreshBusy = busy,
-                        onOpenSearch = onSearchClick,
+                        avatarUrl = profile?.avatarUrl,
+                        onAvatarClick = { showProfile = true },
                     )
                 }
                 item { KittyPosterSkeletonRow("Trending Anime") }
@@ -180,7 +196,8 @@ fun KittyHomeScreen(
                     displayName = displayName,
                     onRefresh = { viewModel.refresh() },
                     refreshBusy = busy,
-                    onOpenSearch = onSearchClick,
+                    avatarUrl = profile?.avatarUrl,
+                    onAvatarClick = { showProfile = true },
                 )
                 Spacer(modifier = Modifier.height(28.dp))
                 KittyEmptyState(
@@ -191,13 +208,14 @@ fun KittyHomeScreen(
                 )
             }
 
-            else -> LazyColumn(contentPadding = PaddingValues(bottom = 100.dp)) {
+            else -> LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
                 item {
                     HomeWelcomeHeader(
                         displayName = displayName,
                         onRefresh = { viewModel.refresh() },
                         refreshBusy = busy,
-                        onOpenSearch = onSearchClick,
+                        avatarUrl = profile?.avatarUrl,
+                        onAvatarClick = { showProfile = true },
                     )
                 }
                 item { KittyGlassHeroPager(items = trending, onOpen = ::open) }
