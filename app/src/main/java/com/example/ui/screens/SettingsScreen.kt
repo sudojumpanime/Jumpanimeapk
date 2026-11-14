@@ -61,7 +61,8 @@ fun SettingsScreen(
     onLogout: () -> Unit,
     onEditProfileClick: () -> Unit,
     onThemeChange: (String) -> Unit = {},
-    onStreamSourcesClick: () -> Unit = {}
+    onStreamSourcesClick: () -> Unit = {},
+    onDownloadsClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -286,6 +287,14 @@ fun SettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Text("Stream sources & extensions", fontWeight = FontWeight.Bold)
+            }
+            androidx.compose.material3.OutlinedButton(
+                onClick = onDownloadsClick,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("Downloads", fontWeight = FontWeight.Bold)
             }
 
             // MINI VISUAL STATS DASHBOARD

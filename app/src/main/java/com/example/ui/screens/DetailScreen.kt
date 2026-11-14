@@ -73,6 +73,7 @@ fun DetailScreen(
     sessionManager: SessionManager,
     onBackClick: () -> Unit,
     onEpisodeClick: (Anime, Episode) -> Unit,
+    onDownloadEpisode: (Anime, Episode) -> Unit = { _, _ -> },
     onAnimeClick: (String) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -524,7 +525,14 @@ fun DetailScreen(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
                                         items(displayEpisodes, key = { it._id }) { episode ->
-                                            EpisodeCard(episode = episode, fallbackPosterUrl = anime.poster, animeTitle = anime.title) {
+                                            EpisodeCard(
+                                                episode = episode,
+                                                fallbackPosterUrl = anime.poster,
+                                                animeTitle = anime.title,
+                                                onDownload = if (anime._id.startsWith(com.example.kitty.KITTY_ID_PREFIX)) {
+                                                    { onDownloadEpisode(anime, episode) }
+                                                } else null
+                                            ) {
                                                 onEpisodeClick(anime, episode)
                                             }
                                         }
@@ -861,7 +869,7 @@ fun DetailScreen(
 }
 
 @Composable
-fun EpisodeCard(episode: Episode, fallbackPosterUrl: String?, animeTitle: String? = null, onClick: () -> Unit) {
+fun EpisodeCard(episode: Episode, fallbackPosterUrl: String?, animeTitle: String? = null, onDownload: (() -> Unit)? = null, onClick: () -> Unit) {
     val imageUrl = if (!episode.thumbnail.isNullOrEmpty()) episode.thumbnail else fallbackPosterUrl
     Column(
         modifier = Modifier
@@ -883,6 +891,19 @@ fun EpisodeCard(episode: Episode, fallbackPosterUrl: String?, animeTitle: String
                 targetWidth = 240,
                 targetHeight = 345
             )
+            if (onDownload != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                        .size(26.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        .clickable { onDownload() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Download episode", tint = Color.White, modifier = Modifier.size(15.dp))
+                }
+            }
             // Play icon overlay
             Box(
                 modifier = Modifier

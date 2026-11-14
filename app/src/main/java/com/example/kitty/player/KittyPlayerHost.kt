@@ -174,3 +174,31 @@ private fun KittyCenteredMessage(
         }
     }
 }
+
+/** Plays a file saved by the download manager. No network lookup needed. */
+@Composable
+fun KittyOfflinePlayer(
+    title: String,
+    episode: Int,
+    path: String,
+    onBack: () -> Unit,
+) {
+    val source = remember(path) {
+        PlayableSource(
+            url = android.net.Uri.fromFile(java.io.File(path)).toString(),
+            label = "Downloaded",
+            stripBytes = 0,
+        )
+    }
+    PlayerScreen(
+        title = title,
+        episode = episode,
+        sources = listOf(source),
+        anilistId = 0,
+        titleHint = title,
+        startPositionMs = 0L,
+        onClose = onBack,
+        onNextEpisode = null,
+        onProgress = { _, _ -> },
+    )
+}

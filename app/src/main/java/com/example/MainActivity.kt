@@ -525,7 +525,18 @@ fun JumpAnimeApp(
                                 )
                             )
                         },
-                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
+                        onDownloadEpisode = { anime, episode ->
+                            val aniListId = anime._id.anilistIdOrNull()
+                            if (aniListId != null) {
+                                container.downloads.enqueue(anime._id, aniListId, anime.title, anime.poster, episode.number)
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "Added Episode ${episode.number} to Downloads",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     )
                 }
 
@@ -545,6 +556,9 @@ fun JumpAnimeApp(
                         },
                         onStreamSourcesClick = {
                             navController.navigate(Screen.Extensions)
+                        },
+                        onDownloadsClick = {
+                            navController.navigate(Screen.Downloads)
                         },
                         onThemeChange = { theme ->
                             themeNameState.value = theme
@@ -587,6 +601,29 @@ fun JumpAnimeApp(
                             )
                         },
                         onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Screen.Downloads> {
+                    com.example.kitty.download.KittyDownloadsScreen(
+                        manager = container.downloads,
+                        onPlay = { item ->
+                            val path = item.filePath
+                            if (path != null) {
+                                navController.navigate(Screen.OfflinePlayer(item.animeTitle, item.episode, path))
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Screen.OfflinePlayer> { backStackEntry ->
+                    val offline: Screen.OfflinePlayer = backStackEntry.toRoute()
+                    com.example.kitty.player.KittyOfflinePlayer(
+                        title = offline.title,
+                        episode = offline.episode,
+                        path = offline.path,
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
