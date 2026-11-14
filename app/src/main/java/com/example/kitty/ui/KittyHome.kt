@@ -663,6 +663,8 @@ fun HomeWelcomeHeader(
     refreshBusy: Boolean = false,
     onOpenSearch: (() -> Unit)? = null,
     onOpenAccount: (() -> Unit)? = null,
+    avatarUrl: String? = null,
+    onAvatarClick: (() -> Unit)? = null,
 ) {
     Row(
         modifier = Modifier
@@ -705,7 +707,32 @@ fun HomeWelcomeHeader(
                     )
                 }
             }
-            if (onOpenAccount != null) {
+            if (onAvatarClick != null) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(KittyAccent)
+                        .clickable(onClick = onAvatarClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (!avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "Profile",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Text(
+                            displayName.take(1).uppercase().ifBlank { "?" },
+                            color = KittyOnAccent,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp,
+                        )
+                    }
+                }
+            } else if (onOpenAccount != null) {
                 KittyRoundIconButton(onClick = onOpenAccount) {
                     Icon(
                         Icons.Outlined.Person,

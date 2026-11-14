@@ -160,9 +160,10 @@ private fun getTabIndex(destination: androidx.navigation.NavDestination?): Int? 
     if (destination == null) return null
     return when {
         destination.hasRoute<Screen.Home>() -> 0
-        destination.hasRoute<Screen.Schedule>() -> 1
-        destination.hasRoute<Screen.Watchlist>() -> 2
-        destination.hasRoute<Screen.Settings>() -> 3
+        destination.hasRoute<Screen.Browse>() -> 1
+        destination.hasRoute<Screen.Schedule>() -> 2
+        destination.hasRoute<Screen.Watchlist>() -> 3
+        destination.hasRoute<Screen.Account>() -> 4
         else -> null
     }
 }
@@ -188,18 +189,18 @@ fun JumpAnimeApp(
                 com.example.kitty.ui.KittyHomeViewModel(container.kitty, container.repository) as T
         }
     )
-    val scheduleViewModel: ScheduleViewModel = viewModel(
+
+    val libraryViewModel: com.example.kitty.ui.KittyLibraryViewModel = viewModel(
         viewModelStoreOwner = context as androidx.activity.ComponentActivity,
-        factory = ViewModelFactory(container.repository, container.episodeUpdateService)
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
+                com.example.kitty.ui.KittyLibraryViewModel(container.kitty, container.repository) as T
+        }
     )
-    val watchlistViewModel: WatchlistViewModel = viewModel(
-        viewModelStoreOwner = context as androidx.activity.ComponentActivity,
-        factory = ViewModelFactory(container.repository)
-    )
+    var libraryFilter by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("all") }
 
     val homeLoadDone by homeViewModel.ready.collectAsStateWithLifecycle()
-    val scheduleLoadDone by scheduleViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
-    val watchlistLoadDone by watchlistViewModel.isInitialLoadCompleted.collectAsStateWithLifecycle()
 
     var lastDismissedVersion by androidx.compose.runtime.remember { 
         androidx.compose.runtime.mutableStateOf(container.sessionManager.getLastDismissedUpdateVersion()) 
@@ -225,8 +226,8 @@ fun JumpAnimeApp(
     }
     
     // Dismiss splash screen ONLY when all core features have loaded their initial data
-    androidx.compose.runtime.LaunchedEffect(homeLoadDone, scheduleLoadDone, watchlistLoadDone) {
-        if (homeLoadDone && scheduleLoadDone && watchlistLoadDone) {
+    androidx.compose.runtime.LaunchedEffect(homeLoadDone) {
+        if (homeLoadDone) {
             handleReady()
         }
     }
@@ -243,7 +244,7 @@ fun JumpAnimeApp(
     val currentDestination = navBackStackEntry?.destination
 
     val showBottomBar = currentDestination?.run {
-        hasRoute<Screen.Home>() || hasRoute<Screen.Browse>() || hasRoute<Screen.Schedule>() || hasRoute<Screen.Watchlist>() || hasRoute<Screen.Settings>()
+        hasRoute<Screen.Home>() || hasRoute<Screen.Browse>() || hasRoute<Screen.Schedule>() || hasRoute<Screen.Watchlist>() || hasRoute<Screen.Account>()
     } == true
 
     val activeNotification by container.episodeUpdateService.activeNotification.collectAsStateWithLifecycle()
@@ -295,58 +296,34 @@ fun JumpAnimeApp(
         Scaffold(
             bottomBar = {
                 if (showBottomBar) {
-                    NavigationBar(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = MaterialTheme.colorScheme.primary
-                    ) {
-                        NavigationBarItem(
-                            selected = currentDestination?.hasRoute<Screen.Home>() == true,
-                            onClick = {
-                                navController.navigate(Screen.Home) {
+                    val selectedTab = when {
+                        currentDestination?.hasRoute<Screen.Browse>() == true -> "search"
+                        currentDestination?.hasRoute<Screen.Schedule>() == true -> "schedule"
+                        currentDestination?.hasRoute<Screen.Watchlist>() == true -> "library"
+                        currentDestination?.hasRoute<Screen.Account>() == true -> "account"
+                        else -> "home"
+                    }
+                    com.example.kitty.ui.KittyBottomNav(
+                        tabs = com.example.kitty.ui.KittyTabs,
+                        selectedId = selectedTab,
+                        onSelect = { id ->
+                            val tabOptions: androidx.navigation.NavOptionsBuilder.() -> Unit = {
+                                popUpTo(Screen.Home) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                            when (id) {
+                                "search" -> navController.navigate(Screen.Browse, tabOptions)
+                                "schedule" -> navController.navigate(Screen.Schedule, tabOptions)
+                                "library" -> navController.navigate(Screen.Watchlist, tabOptions)
+                                "account" -> navController.navigate(Screen.Account, tabOptions)
+                                else -> navController.navigate(Screen.Home) {
                                     popUpTo(Screen.Home) { inclusive = false }
                                     launchSingleTop = true
                                 }
-                            },
-                            icon = { Icon(androidx.compose.material.icons.Icons.Default.Home, contentDescription = "Home") },
-                            label = { Text("Home") }
-                        )
-                        NavigationBarItem(
-                            selected = currentDestination?.hasRoute<Screen.Schedule>() == true,
-                            onClick = {
-                                navController.navigate(Screen.Schedule) {
-                                    popUpTo(Screen.Home) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(Icons.Default.CalendarToday, contentDescription = "Schedule") },
-                            label = { Text("Schedule") }
-                        )
-                        NavigationBarItem(
-                            selected = currentDestination?.hasRoute<Screen.Watchlist>() == true,
-                            onClick = {
-                                navController.navigate(Screen.Watchlist) {
-                                    popUpTo(Screen.Home) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(Icons.Default.Bookmark, contentDescription = "My List") },
-                            label = { Text("My List") }
-                        )
-                        NavigationBarItem(
-                            selected = currentDestination?.hasRoute<Screen.Settings>() == true,
-                            onClick = {
-                                navController.navigate(Screen.Settings) {
-                                    popUpTo(Screen.Home) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(Icons.Default.Person, contentDescription = "Profile") },
-                            label = { Text("Profile") }
-                        )
-                    }
+                            }
+                        },
+                    )
                 }
             },
             contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
@@ -466,31 +443,37 @@ fun JumpAnimeApp(
                         },
                         onSearchClick = { navController.navigate(Screen.Browse) },
                         onScheduleClick = { navController.navigate(Screen.Schedule) },
-                        onNotificationsClick = { navController.navigate(Screen.Notifications) }
-                    )
-                }
-
-                composable<Screen.Browse> {
-                    val viewModel: BrowseViewModel = viewModel(factory = ViewModelFactory(container.repository))
-                    BrowseScreen(
-                        viewModel = viewModel,
-                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
-                        onBackClick = {
-                            navController.navigate(Screen.Home) {
-                                popUpTo(Screen.Home) { inclusive = false }
+                        onNotificationsClick = { navController.navigate(Screen.Notifications) },
+                        onAccountClick = {
+                            navController.navigate(Screen.Account) {
+                                popUpTo(Screen.Home) { saveState = true }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
                 }
 
+                composable<Screen.Browse> {
+                    com.example.kitty.ui.KittySearchScreen(
+                        aniList = container.kitty.client,
+                        onOpen = { anime ->
+                            container.kitty.remember(listOf(anime))
+                            navController.navigate(Screen.Detail(com.example.kitty.kittyId(anime.id)))
+                        },
+                    )
+                }
+
                 composable<Screen.Schedule> {
-                    ScheduleScreen(
-                        viewModel = scheduleViewModel,
-                        notificationCount = unreadCount,
-                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
-                        onSearchClick = { navController.navigate(Screen.Browse) },
-                        onNotificationsClick = { navController.navigate(Screen.Notifications) }
+                    com.example.kitty.ui.ScheduleFeed(
+                        aniList = container.kitty.client,
+                        onBack = { navController.popBackStack() },
+                        onOpen = { anime ->
+                            container.kitty.remember(listOf(anime))
+                            navController.navigate(Screen.Detail(com.example.kitty.kittyId(anime.id)))
+                        },
+                        showBack = false,
+                        bottomInset = 12.dp,
                     )
                 }
 
@@ -570,23 +553,29 @@ fun JumpAnimeApp(
                 }
                 
                 composable<Screen.Watchlist> {
-                    WatchlistScreen(
-                        viewModel = watchlistViewModel,
-                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
-                        onResumeClick = { state ->
-                            navController.navigate(
-                                Screen.Player(
-                                    animeId = state.animeId,
-                                    malId = "",
-                                    seasonId = state.seasonId ?: "simulated_season",
-                                    episodeNumber = state.lastEpisode,
-                                    animeTitle = state.animeTitle ?: "",
-                                    episodeTitle = state.episodeTitle ?: "Episode ${state.lastEpisode}",
-                                    animePoster = state.animePoster ?: ""
-                                )
-                            )
+                    com.example.kitty.ui.KittyLibraryScreen(
+                        viewModel = libraryViewModel,
+                        catalog = container.kitty,
+                        filter = libraryFilter,
+                        onFilter = { libraryFilter = it },
+                        onOpen = { id -> navController.navigate(Screen.Detail(id)) },
+                    )
+                }
+
+                composable<Screen.Account> {
+                    com.example.kitty.ui.KittyAccountScreen(
+                        catalog = container.kitty,
+                        onOpenLibrary = { filter ->
+                            libraryFilter = filter
+                            navController.navigate(Screen.Watchlist) {
+                                popUpTo(Screen.Home) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onOpenSources = { navController.navigate(Screen.Extensions) },
+                        onOpenDownloads = { navController.navigate(Screen.Downloads) },
+                        onOpenAppSettings = { navController.navigate(Screen.Settings) },
                     )
                 }
 
