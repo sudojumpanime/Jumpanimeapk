@@ -297,7 +297,9 @@ fun PlayerScreen(
             .setAllowCrossProtocolRedirects(true)
             .setConnectTimeoutMs(12_000)
             .setReadTimeoutMs(20_000)
-        val gotakuFactory = GotakuObfDataSource.Factory(httpFactory).also {
+        val gotakuFactory = GotakuObfDataSource.Factory(
+            androidx.media3.datasource.DefaultDataSource.Factory(context, httpFactory),
+        ).also {
             it.updateObf(source.gotakuObf)
         }
         // Gotaku sources must not inherit MegaPlay's default PNG strip.

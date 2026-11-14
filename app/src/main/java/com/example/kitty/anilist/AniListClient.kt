@@ -241,6 +241,26 @@ class AniListClient(
         }.getOrDefault(false)
     }
 
+    /** Removes a show from the signed-in user's list (no-op if it isn't on it). */
+    suspend fun removeFromList(accessToken: String, mediaId: Int, userId: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val findPayload = JSONObject()
+                    .put("query", "query (\$mediaId: Int, \$userId: Int) { MediaList(mediaId: \$mediaId, userId: \$userId) { id } }")
+                    .put("variables", JSONObject().put("mediaId", mediaId).put("userId", userId))
+                    .toString()
+                val entryId = JSONObject(execute(findPayload, accessToken))
+                    .optJSONObject("data")?.optJSONObject("MediaList")?.optInt("id", 0) ?: 0
+                if (entryId <= 0) return@runCatching true
+                val delPayload = JSONObject()
+                    .put("query", "mutation (\$id: Int) { DeleteMediaListEntry(id: \$id) { deleted } }")
+                    .put("variables", JSONObject().put("id", entryId))
+                    .toString()
+                JSONObject(execute(delPayload, accessToken))
+                    .optJSONObject("data")?.optJSONObject("DeleteMediaListEntry")?.optBoolean("deleted", false) ?: false
+            }.getOrDefault(false)
+        }
+
     /** Update list status and/or score without touching episode progress. Score is 0–100. */
     suspend fun saveList(
         accessToken: String,

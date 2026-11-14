@@ -75,6 +75,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         container = (application as JumpAnimeApplication).container
         currentIntent.value = intent
+        handleAniListCallback(intent)
         
         lifecycleScope.launch(Dispatchers.IO) {
             container.repository.syncWatchlistMetadata()
@@ -109,7 +110,31 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        if (handleAniListCallback(intent)) return
         currentIntent.value = intent
+    }
+
+    /** Finishes AniList sign-in when the browser redirects back to jumpanime://anilist. */
+    private fun handleAniListCallback(intent: android.content.Intent?): Boolean {
+        val account = container.kitty.account
+        if (!account.matchesCallback(intent)) return false
+        val token = account.tokenFromCallback(intent?.data)
+        if (token == null) {
+            android.widget.Toast.makeText(this, "AniList sign-in didn't complete", android.widget.Toast.LENGTH_LONG).show()
+            return true
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val viewer = container.kitty.client.viewer(token)
+            launch(Dispatchers.Main) {
+                if (viewer != null) {
+                    account.save(token, viewer)
+                    android.widget.Toast.makeText(this@MainActivity, "Signed in to AniList as ${viewer.name}", android.widget.Toast.LENGTH_LONG).show()
+                } else {
+                    android.widget.Toast.makeText(this@MainActivity, "Couldn't read your AniList profile", android.widget.Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+        return true
     }
 
     private fun setupWorkManager() {
@@ -525,7 +550,18 @@ fun JumpAnimeApp(
                                 )
                             )
                         },
-                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) }
+                        onAnimeClick = { id -> navController.navigate(Screen.Detail(id)) },
+                        onDownloadEpisode = { anime, episode ->
+                            val aniListId = anime._id.anilistIdOrNull()
+                            if (aniListId != null) {
+                                container.downloads.enqueue(anime._id, aniListId, anime.title, anime.poster, episode.number)
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "Added Episode ${episode.number} to Downloads",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
                     )
                 }
 
@@ -545,6 +581,9 @@ fun JumpAnimeApp(
                         },
                         onStreamSourcesClick = {
                             navController.navigate(Screen.Extensions)
+                        },
+                        onDownloadsClick = {
+                            navController.navigate(Screen.Downloads)
                         },
                         onThemeChange = { theme ->
                             themeNameState.value = theme
@@ -587,6 +626,29 @@ fun JumpAnimeApp(
                             )
                         },
                         onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Screen.Downloads> {
+                    com.example.kitty.download.KittyDownloadsScreen(
+                        manager = container.downloads,
+                        onPlay = { item ->
+                            val path = item.filePath
+                            if (path != null) {
+                                navController.navigate(Screen.OfflinePlayer(item.animeTitle, item.episode, path))
+                            }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable<Screen.OfflinePlayer> { backStackEntry ->
+                    val offline: Screen.OfflinePlayer = backStackEntry.toRoute()
+                    com.example.kitty.player.KittyOfflinePlayer(
+                        title = offline.title,
+                        episode = offline.episode,
+                        path = offline.path,
+                        onBack = { navController.popBackStack() }
                     )
                 }
 

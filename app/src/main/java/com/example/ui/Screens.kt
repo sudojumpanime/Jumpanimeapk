@@ -49,4 +49,10 @@ sealed interface Screen {
 
     @Serializable
     data object Extensions : Screen
+
+    @Serializable
+    data object Downloads : Screen
+
+    @Serializable
+    data class OfflinePlayer(val title: String, val episode: Int, val path: String) : Screen
 }

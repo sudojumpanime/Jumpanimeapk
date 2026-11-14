@@ -1200,7 +1200,29 @@ class JumpAnimeRepository(
         return animeDao.getById(animeId)?.inWatchlist == true
     }
 
+    /** Signed-in AniList user's lists (everything except Dropped), or null if not linked / offline. */
+    private suspend fun anilistWatchlist(): List<Anime>? {
+        val token = kitty.account.accessToken ?: return null
+        val userId = kitty.account.userId.takeIf { it > 0 } ?: return null
+        return try {
+            val entries = kitty.client.mediaListEntries(token, userId)
+                .filter { it.status != "DROPPED" }
+            kitty.remember(entries.map { it.media })
+            val shows = entries.map { it.media.toAnime() }
+            animeDao.clearWatchlistFlag()
+            shows.forEach { anime ->
+                if (animeDao.getById(anime._id) == null) saveAnimesLocally(listOf(anime), inWatchlist = true)
+                else animeDao.updateInWatchlist(anime._id, true)
+            }
+            shows
+        } catch (e: Exception) {
+            android.util.Log.e("AniListLists", "Couldn't load AniList lists", e)
+            null
+        }
+    }
+
     suspend fun getWatchlist(): List<Anime> {
+        anilistWatchlist()?.let { return it }
         if (sessionManager.isGuestMode() || !sessionManager.isLoggedIn()) {
             return animeDao.getWatchlist().map { it.copy(inWatchlist = true) }
         }
@@ -1741,6 +1763,12 @@ class JumpAnimeRepository(
     }
 
     suspend fun addToWatchlist(anime: Anime) {
+        val alId = anime._id.anilistIdOrNull()
+        if (alId != null) {
+            kitty.account.accessToken?.let { kitty.client.saveList(it, alId, status = "PLANNING") }
+            saveAnimesLocally(listOf(anime), inWatchlist = true)
+            return
+        }
         if (!sessionManager.isGuestMode() && sessionManager.isLoggedIn()) {
             try {
                 api.addToWatchlist(anime._id)
@@ -1750,6 +1778,13 @@ class JumpAnimeRepository(
     }
 
     suspend fun removeFromWatchlist(animeId: String) {
+        val alId = animeId.anilistIdOrNull()
+        if (alId != null) {
+            val token = kitty.account.accessToken
+            if (token != null && kitty.account.userId > 0) kitty.client.removeFromList(token, alId, kitty.account.userId)
+            animeDao.removeFromWatchlist(animeId)
+            return
+        }
         if (!sessionManager.isGuestMode() && sessionManager.isLoggedIn()) {
             try {
                 api.removeFromWatchlist(animeId)
@@ -1764,6 +1799,7 @@ class JumpAnimeRepository(
             val watchlist = getWatchlist()
             watchlist.forEach { savedAnime ->
                 try {
+                    if (savedAnime._id.anilistIdOrNull() != null) return@forEach
                     val fullDetail = api.getAnimeDetail(savedAnime._id)
                     val updatedAnime = fullDetail.copy(inWatchlist = true)
                     saveAnimesLocally(listOf(updatedAnime), inWatchlist = true)
@@ -1787,7 +1823,21 @@ class JumpAnimeRepository(
     // Local Watch State
     suspend fun getAllCachedAnime(): List<Anime> = animeDao.getAll()
     suspend fun getLocalWatchState(animeId: String) = watchDao.getState(animeId)
+    private val pushedProgress = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /** Tells AniList an episode is done (once ~85% watched). Safe to call often. */
+    private suspend fun pushAniListProgress(animeId: String, episode: Int, progress: Float) {
+        val alId = animeId.anilistIdOrNull() ?: return
+        val token = kitty.account.accessToken ?: return
+        if (progress < 0.85f) return
+        if ((pushedProgress[animeId] ?: 0) >= episode) return
+        val total = kitty.cached(alId)?.episodes ?: 0
+        val status = if (total > 0 && episode >= total) "COMPLETED" else "CURRENT"
+        if (kitty.client.saveProgress(token, alId, episode, status)) pushedProgress[animeId] = episode
+    }
+
     suspend fun saveLocalWatchState(animeId: String, episode: Int, progress: Float = 0f) {
+        try { pushAniListProgress(animeId, episode, progress) } catch (e: Exception) { /* local save below still matters */ }
         val existing = watchDao.getState(animeId)
         val anime = animeDao.getById(animeId)
         watchDao.saveState(

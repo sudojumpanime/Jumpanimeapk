@@ -96,6 +96,7 @@ fun AnimeSummary.toEpisodes(animeId: String): List<Episode> {
 
 class KittyCatalog(context: Context) {
     val client = AniListClient(context.applicationContext)
+    val account = com.example.kitty.anilist.AniListAccount(context)
 
     /** Everything seen this session. Detail payloads are never replaced by thinner list payloads. */
     private val summaries = ConcurrentHashMap<Int, AnimeSummary>()
